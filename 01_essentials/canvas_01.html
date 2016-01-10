@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Canvas Examples</title>
+
+    <style>
+        body {
+            background-color: #eee;
+        }
+
+        canvas {
+            border: none;
+            background-color: white;
+        }
+
+        #debugLog {
+            position: fixed;
+            top: 0px;
+            right: 0px;
+            background-color: pink;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Canvas Experiment</h1>
+<p>Click to start drawing a path. Shift-click to stop. Line won't show until you shift-click.</p>
+
+<div id="debugLog">
+
+</div>
+
+<canvas id="testCanvas" width="640" height="480">
+    Please update your browser.
+</canvas>
+
+<script>
+
+    function Paint(canvasElmt){
+        var self = this;
+
+        this.canvas = canvasElmt;
+        this.context = canvasElmt.getContext('2d');
+
+        var rect = this.canvas.getBoundingClientRect();
+        console.info(rect);
+
+        this.state = 'inactive';
+
+        this.debugLog = document.getElementById('debugLog');
+
+        this.init = function(){
+            this.canvas.addEventListener('click', self.handleClick);
+            this.canvas.addEventListener('mousemove', self.logMousePosition);
+        };
+
+        this.drawExamples = function(){
+            var context = this.context;
+
+            context.fillRect(200, 10, 100, 100);
+            context.fillRect(50, 70, 90, 30);
+
+            context.strokeRect(110, 10, 50, 50);
+            context.strokeRect(30, 10, 50, 50);
+
+            context.clearRect(210, 20, 30, 20);
+            context.clearRect(260, 20, 30, 20);
+        };
+
+        this.logMousePosition = function (event) {
+            debugLog.innerHTML = "clientY: " + event.clientY + "<br />";
+            debugLog.innerHTML += "layerY: " + event.layerY + "<br />";
+            debugLog.innerHTML += "offsetY: " + event.offsetY + "<br />";
+            debugLog.innerHTML += "pageY: " + event.pageY + "<br />";
+            debugLog.innerHTML += "screenY: " + event.screenY + "<br />";
+            debugLog.innerHTML += "y: " + event.y + "<br />";
+        };
+
+        this.handleClick = function(event){
+            console.info(event);
+
+
+
+            var x = event.offsetX,
+                y = event.offsetY;
+
+            debugger;
+
+            switch(self.state){
+                case 'inactive':
+                    self.startPath(x,y);
+                    self.state = 'active';
+                    break;
+                case 'active':
+                    if (event.shiftKey) {
+                        self.stopPath(x,y);
+                        self.state = 'inactive'
+                    }
+                    else {
+                        self.continuePath(x,y);
+                    }
+                    break;
+            }
+        };
+
+        this.startPath = function(x,y){
+            self.context.beginPath();
+            self.context.moveTo(x, y);
+        };
+
+        this.continuePath = function(x,y) {
+            self.context.lineTo(x,y);
+        };
+
+        this.stopPath = function(x,y){
+            self.context.lineTo(x, y);
+            self.context.closePath();
+            self.context.stroke();
+        };
+    }
+
+
+    function pageInit() {
+
+        var painter = new Paint(document.getElementById('testCanvas'));
+        painter.drawExamples();
+        painter.init();
+
+    }
+
+    pageInit();
+</script>
+
+</body>
+</html>
