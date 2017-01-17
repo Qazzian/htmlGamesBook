@@ -1,26 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Canvas Examples</title>
+	<meta charset="UTF-8">
+	<title>Canvas Examples</title>
 
-    <style>
-        body {
-            background-color: #eee;
-        }
+	<style>
+		body {
+			background-color: #eee;
+		}
 
-        canvas {
-            border: none;
-            background-color: white;
-        }
+		canvas {
+			border: none;
+		}
 
-        #debugLog {
-            position: fixed;
-            top: 0px;
-            right: 0px;
-            background-color: pink;
-        }
-    </style>
+		.canvas-container {
+			position: relative;
+		}
+
+		#testCanvas {
+			background-color: white;
+		}
+
+		#editPane {
+			position: absolute;
+			top: 0;
+			left: 0;
+			background: transparent;
+		}
+
+		#debugLog {
+			position: fixed;
+			top: 0;
+			right: 0;
+			background-color: pink;
+		}
+	</style>
 </head>
 <body>
 
@@ -31,105 +45,139 @@
 
 </div>
 
-<canvas id="testCanvas" width="640" height="480">
-    Please update your browser.
-</canvas>
+<div class="canvas-container">
+	<canvas id="testCanvas" width="640" height="480">
+		Please update your browser.
+	</canvas>
+	<canvas id="editPane" width="640" height="480">
+		Please update your browser.
+	</canvas>
+</div>
+
 
 <script>
+	var paintStates = {
+		inactive: function (x, y) {
+			this.startPath(x, y);
+			this.setState('active');
+			this.editFunction = 'beginPath';
+			this.editPath = [];
+		},
+		active: function (x, y, event) {
+			if (event.shiftKey) {
+				this.stopPath(x, y);
+				this.saveEdit();
+				this.setState('inactive')
 
-    function Paint(canvasElmt){
-        var self = this;
-
-        this.canvas = canvasElmt;
-        this.context = canvasElmt.getContext('2d');
-
-        var rect = this.canvas.getBoundingClientRect();
-        console.info(rect);
-
-        this.state = 'inactive';
-
-        this.debugLog = document.getElementById('debugLog');
-
-        this.init = function(){
-            this.canvas.addEventListener('click', self.handleClick);
-            this.canvas.addEventListener('mousemove', self.logMousePosition);
-        };
-
-        this.drawExamples = function(){
-            var context = this.context;
-
-            context.fillRect(200, 10, 100, 100);
-            context.fillRect(50, 70, 90, 30);
-
-            context.strokeRect(110, 10, 50, 50);
-            context.strokeRect(30, 10, 50, 50);
-
-            context.clearRect(210, 20, 30, 20);
-            context.clearRect(260, 20, 30, 20);
-        };
-
-        this.logMousePosition = function (event) {
-            debugLog.innerHTML = "clientY: " + event.clientY + "<br />";
-            debugLog.innerHTML += "layerY: " + event.layerY + "<br />";
-            debugLog.innerHTML += "offsetY: " + event.offsetY + "<br />";
-            debugLog.innerHTML += "pageY: " + event.pageY + "<br />";
-            debugLog.innerHTML += "screenY: " + event.screenY + "<br />";
-            debugLog.innerHTML += "y: " + event.y + "<br />";
-        };
-
-        this.handleClick = function(event){
-            console.info(event);
+			}
+			else {
+				this.continuePath(x, y);
+			}
+		}
+	};
 
 
+	function Paint(canvasElmt, editPaneElement) {
+		var self = this;
 
-            var x = event.offsetX,
-                y = event.offsetY;
+		this.clickHandler = function () {
+		};
+		this.canvas = canvasElmt;
+		this.context = canvasElmt.getContext('2d');
+		this.editPane = editPaneElement;
+		this.editContext = editPaneElement.getContext('2d');
+		this.shapes = [];
 
-            debugger;
+		this.editFunction = '';
+		this.editPath = [];
 
-            switch(self.state){
-                case 'inactive':
-                    self.startPath(x,y);
-                    self.state = 'active';
-                    break;
-                case 'active':
-                    if (event.shiftKey) {
-                        self.stopPath(x,y);
-                        self.state = 'inactive'
-                    }
-                    else {
-                        self.continuePath(x,y);
-                    }
-                    break;
-            }
-        };
+		var rect = this.canvas.getBoundingClientRect();
+		console.info(rect);
 
-        this.startPath = function(x,y){
-            self.context.beginPath();
-            self.context.moveTo(x, y);
-        };
+		this.debugLog = document.getElementById('debugLog');
 
-        this.continuePath = function(x,y) {
-            self.context.lineTo(x,y);
-        };
+		this.init = function () {
+			this.setState('inactive');
+			this.editPane.addEventListener('click', self.handleClick);
+			this.editPane.addEventListener('mousemove', self.logMousePosition);
+		};
 
-        this.stopPath = function(x,y){
-            self.context.lineTo(x, y);
-            self.context.closePath();
-            self.context.stroke();
-        };
-    }
+		this.renderShapes = function() {
+			var context = this.context;
+			this.shapes.forEach(function(writeCommand){
+				context[writeCommand[0]].apply(context, writeCommand[1]);
+			})
+		};
+
+		this.drawExamples = function () {
+			this.shapes.push(['fillRect', [200, 10, 100, 100]]);
+			this.shapes.push(['fillRect', [50, 70, 90, 30]]);
+
+			this.shapes.push(['strokeRect', [110, 10, 50, 50]]);
+			this.shapes.push(['strokeRect', [30, 10, 50, 50]]);
+
+			this.shapes.push(['clearRect', [210, 20, 30, 20]]);
+			this.shapes.push(['clearRect', [260, 20, 30, 20]]);
+
+			this.renderShapes();
+		};
+
+		this.logMousePosition = function (event) {
+			self.debugLog.innerHTML = "clientY: " + event.clientY + "<br />";
+			self.debugLog.innerHTML += "layerY: " + event.layerY + "<br />";
+			self.debugLog.innerHTML += "offsetY: " + event.offsetY + "<br />";
+			self.debugLog.innerHTML += "pageY: " + event.pageY + "<br />";
+			self.debugLog.innerHTML += "screenY: " + event.screenY + "<br />";
+			self.debugLog.innerHTML += "y: " + event.y + "<br />";
+		};
+
+		this.setState = function (stateId) {
+			if (paintStates.hasOwnProperty(stateId)) {
+				this.clickHandler = paintStates[stateId];
+			}
+		};
+
+		this.handleClick = function (event) {
+			console.info(event);
+
+			var x = event.offsetX,
+				y = event.offsetY;
+
+			return self.clickHandler(x, y, event);
+		};
+
+		this.startPath = function (x, y) {
+			self.context.beginPath();
+			self.context.moveTo(x, y);
+		};
+
+		this.continuePath = function (x, y) {
+			self.context.lineTo(x, y);
+		};
+
+		this.stopPath = function (x, y) {
+			self.context.lineTo(x, y);
+			self.context.closePath();
+			self.context.stroke();
+		};
+
+		this.saveEdit = function() {
+			var newEdit = [this.editFunction, this.editPath];
+			this.shapes.push(newEdit);
+		}
+	}
 
 
-    function pageInit() {
+	function pageInit() {
 
-        var painter = new Paint(document.getElementById('testCanvas'));
-        painter.drawExamples();
-        painter.init();
+		var painter = new Paint(document.getElementById('testCanvas'), document.getElementById('editPane'));
+		painter.init();
+		painter.drawExamples();
 
-    }
+		window.painter = painter;
+	}
 
-    pageInit();
+	pageInit();
 </script>
 
 </body>
