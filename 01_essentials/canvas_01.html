@@ -15,6 +15,16 @@
 
 		.canvas-container {
 			position: relative;
+			float: left;
+		}
+
+		.layer-view {
+			float: left;
+			max-width: 240px;
+			padding-left: 20px;
+		}
+		.layer-list {
+			padding-left: 20px;
 		}
 
 		#testCanvas {
@@ -58,24 +68,31 @@
 	</canvas>
 </div>
 
+<div class="layer-view">
+	<h3>Layers</h3>
+	<ul class="layer-list"></ul>
+</div>
+
 
 <script>
 	var paintStates = {
 		inactive: function (x, y) {
-			this.startPath(x, y);
 			this.setState('active');
-			this.editFunction = 'beginPath';
-			this.editPath = [];
+			this.editFunction = 'closedShape';
+			this.editShape.push([x, y]);
 		},
 		active: function (x, y, event) {
+			console.info('active event: ', event);
 			if (event.shiftKey) {
-				this.stopPath(x, y);
+				this.editShape.push([x, y]);
 				this.saveEdit();
-				this.setState('inactive')
+				this.setState('inactive');
+				this.refreshWindow();
 
 			}
 			else {
-				this.continuePath(x, y);
+//				this.continuePath(x, y);
+				this.editShape.push([x, y]);
 			}
 		}
 	};
@@ -88,12 +105,15 @@
 		};
 		this.canvas = canvasElmt;
 		this.context = canvasElmt.getContext('2d');
-		this.editPane = editPaneElement;
-		this.editContext = editPaneElement.getContext('2d');
 		this.shapes = [];
 
+		this.editPane = editPaneElement;
+		this.editContext = editPaneElement.getContext('2d');
 		this.editFunction = '';
-		this.editPath = [];
+		this.editShape = [];
+
+		this.width = this.canvas.clientWidth;
+		this.height = this.canvas.clientHeight;
 
 		var rect = this.canvas.getBoundingClientRect();
 		console.info(rect);
@@ -113,11 +133,67 @@
 			});
 		};
 
-		this.renderShapes = function() {
-			var context = this.context;
-			this.shapes.forEach(function(writeCommand){
-				context[writeCommand[0]].apply(context, writeCommand[1]);
-			})
+		this.refreshWindow = function () {
+			this.renderLayerList();
+			this.renderShapes();
+		};
+
+		this.renderShapes = function (context) {
+			context = context || this.context;
+			this.shapes.forEach(function (writeCommand) {
+				var renderFunction = writeCommand[0];
+				if (self.renderFunctions.hasOwnProperty(renderFunction)) {
+					self.renderFunctions[renderFunction](context, writeCommand[1]);
+				}
+				else {
+					context[writeCommand[0]].apply(context, writeCommand[1]);
+				}
+			});
+		};
+
+		this.renderEditShape = function () {
+			var context = this.editContext;
+			var coords = this.editShape;
+			console.info('editShape: ', coords);
+			var i, l = coords.length;
+
+			context.clearRect(0, 0, this.width, this.height);
+			if (l == 0) {
+				return;
+			}
+
+			context.beginPath();
+			// first click
+			context.moveTo(coords[0][0], coords[0][1]);
+			console.info("start: ", coords[0][0], coords[0][1]);
+			// continue from the second click
+			for (i = 1; i < l; i++) {
+				console.info("render", coords[i][0], coords[i][1]);
+				self.context.lineTo(coords[i][0], coords[i][1]);
+			}
+			self.context.stroke();
+//			context.closePath();
+
+		};
+
+		this.renderLayerList = function () {
+			var listElmt = document.getElementsByClassName('layer-list')[0];
+			var i = 0, l = this.shapes.length;
+			var liElmt, titleElmt, descriptionElmt;
+			listElmt.innerHTML = '';
+
+			for (; i < l; i++) {
+				liElmt = document.createElement('li');
+				titleElmt = document.createElement('span');
+				descriptionElmt = document.createElement('span');
+				titleElmt.innerHTML = this.shapes[i][0];
+				descriptionElmt.innerHTML = this.shapes[i][1].join(', ');
+
+				liElmt.appendChild(titleElmt);
+				liElmt.appendChild(descriptionElmt);
+				listElmt.appendChild(liElmt);
+			}
+
 		};
 
 		this.clearCanvas = function () {
@@ -136,7 +212,7 @@
 			this.shapes.push(['clearRect', [210, 20, 30, 20]]);
 			this.shapes.push(['clearRect', [260, 20, 30, 20]]);
 
-			this.renderShapes();
+			this.refreshWindow();
 		};
 
 		this.logMousePosition = function (event) {
@@ -150,6 +226,7 @@
 
 		this.setState = function (stateId) {
 			if (paintStates.hasOwnProperty(stateId)) {
+				console.info('STATE: ', stateId);
 				this.clickHandler = paintStates[stateId];
 			}
 		};
@@ -158,32 +235,38 @@
 			console.info(event);
 
 			var x = event.offsetX,
-				y = event.offsetY;
+					y = event.offsetY;
 
-			return self.clickHandler(x, y, event);
+			self.clickHandler(x, y, event);
+			self.renderEditShape();
 		};
 
-		this.startPath = function (x, y) {
-			self.context.beginPath();
-			self.context.moveTo(x, y);
-		};
-
-		this.continuePath = function (x, y) {
-			self.context.lineTo(x, y);
-		};
-
-		this.stopPath = function (x, y) {
-			self.context.lineTo(x, y);
-			self.context.closePath();
-			self.context.stroke();
-		};
-
-		this.saveEdit = function() {
-			var newEdit = [this.editFunction, this.editPath];
+		this.saveEdit = function () {
+			var newEdit = [this.editFunction, this.editShape];
 			this.shapes.push(newEdit);
+			this.editFunction = '';
+			this.editShape = [];
 		}
 	}
 
+	Paint.prototype = {
+		renderFunctions: {
+			closedShape: function (context, coords) {
+				if (coords.length < 0) {
+					return;
+				}
+				var i, l = coords.length;
+
+				context.beginPath();
+				context.moveTo(coords[0][0], coords[0][1]);
+				for (i = 1; i < l; i++) {
+					context.lineTo(coords[i][0], coords[i][1]);
+				}
+				context.closePath();
+				context.stroke();
+			}
+		}
+	};
 
 	function pageInit() {
 
