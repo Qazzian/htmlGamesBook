@@ -41,6 +41,10 @@
 <h1>Canvas Experiment</h1>
 <p>Click to start drawing a path. Shift-click to stop. Line won't show until you shift-click.</p>
 
+<section class="paint-tools">
+	<button class="clearButton">clear</button>
+</section>
+
 <div id="debugLog">
 
 </div>
@@ -100,6 +104,13 @@
 			this.setState('inactive');
 			this.editPane.addEventListener('click', self.handleClick);
 			this.editPane.addEventListener('mousemove', self.logMousePosition);
+			this.bindEventHandlers();
+		};
+
+		this.bindEventHandlers = function () {
+			document.getElementsByClassName('clearButton')[0].addEventListener('click', function () {
+				self.clearCanvas();
+			});
 		};
 
 		this.renderShapes = function() {
@@ -107,6 +118,12 @@
 			this.shapes.forEach(function(writeCommand){
 				context[writeCommand[0]].apply(context, writeCommand[1]);
 			})
+		};
+
+		this.clearCanvas = function () {
+			console.info('clear canvas');
+			this.context.clearRect(0, 0, self.width, self.height);
+			this.editContext.clearRect(0, 0, self.width, self.height);
 		};
 
 		this.drawExamples = function () {
