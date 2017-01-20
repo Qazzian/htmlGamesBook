@@ -157,21 +157,23 @@
 			console.info('editShape: ', coords);
 			var i, l = coords.length;
 
+			var editPath = new Path2D();
+
 			context.clearRect(0, 0, this.width, this.height);
 			if (l == 0) {
 				return;
 			}
 
-			context.beginPath();
+//			editPath.beginPath();
 			// first click
-			context.moveTo(coords[0][0], coords[0][1]);
+			editPath.moveTo(coords[0][0], coords[0][1]);
 			console.info("start: ", coords[0][0], coords[0][1]);
 			// continue from the second click
 			for (i = 1; i < l; i++) {
 				console.info("render", coords[i][0], coords[i][1]);
-				self.context.lineTo(coords[i][0], coords[i][1]);
+				editPath.lineTo(coords[i][0], coords[i][1]);
 			}
-			self.context.stroke();
+			context.stroke(editPath);
 //			context.closePath();
 
 		};
