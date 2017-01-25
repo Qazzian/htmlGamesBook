@@ -23,6 +23,7 @@
 			max-width: 240px;
 			padding-left: 20px;
 		}
+
 		.layer-list {
 			padding-left: 20px;
 		}
@@ -76,23 +77,31 @@
 
 <script>
 	var paintStates = {
-		inactive: function (x, y) {
-			this.setState('active');
-			this.editFunction = 'closedShape';
-			this.editShape.push([x, y]);
-		},
-		active: function (x, y, event) {
-			console.info('active event: ', event);
-			if (event.shiftKey) {
+		inactive: {
+			click: function (x, y) {
+				this.setState('active');
+				this.editFunction = 'closedShape';
 				this.editShape.push([x, y]);
-				this.saveEdit();
-				this.setState('inactive');
-				this.refreshWindow();
-
+			},
+			mouseMove: function (x, y, event) {
 			}
-			else {
+		},
+		active: {
+			click: function (x, y, event) {
+				console.info('active event: ', event);
+				if (event.shiftKey) {
+					this.editShape.push([x, y]);
+					this.saveEdit();
+					this.setState('inactive');
+					this.refreshWindow();
+
+				}
+				else {
 //				this.continuePath(x, y);
-				this.editShape.push([x, y]);
+					this.editShape.push([x, y]);
+				}
+			},
+			mouseMove: function(x, y, event) {
 			}
 		}
 	};
@@ -101,8 +110,12 @@
 	function Paint(canvasElmt, editPaneElement) {
 		var self = this;
 
+		// painting functions that should be overridden by the states above
 		this.clickHandler = function () {
 		};
+		this.updateEditPosition = function () {
+		};
+
 		this.canvas = canvasElmt;
 		this.context = canvasElmt.getContext('2d');
 		this.shapes = [];
@@ -111,6 +124,11 @@
 		this.editContext = editPaneElement.getContext('2d');
 		this.editFunction = '';
 		this.editShape = [];
+
+		this.pointerPosition = {
+			x: 0,
+			y: 0
+		};
 
 		this.width = this.canvas.clientWidth;
 		this.height = this.canvas.clientHeight;
@@ -123,7 +141,7 @@
 		this.init = function () {
 			this.setState('inactive');
 			this.editPane.addEventListener('click', self.handleClick);
-			this.editPane.addEventListener('mousemove', self.logMousePosition);
+			this.editPane.addEventListener('mousemove', self.handleMouseMove);
 			this.bindEventHandlers();
 		};
 
@@ -173,6 +191,7 @@
 				console.info("render", coords[i][0], coords[i][1]);
 				editPath.lineTo(coords[i][0], coords[i][1]);
 			}
+			editPath.lineTo(this.pointerPosition.x, this.pointerPosition.y);
 			context.stroke(editPath);
 //			context.closePath();
 
@@ -217,6 +236,11 @@
 			this.refreshWindow();
 		};
 
+		this.updatePointerPosition = function(event) {
+			this.pointerPosition.x = event.offsetX;
+			this.pointerPosition.y = event.offsetY;
+		};
+
 		this.logMousePosition = function (event) {
 			self.debugLog.innerHTML = "clientY: " + event.clientY + "<br />";
 			self.debugLog.innerHTML += "layerY: " + event.layerY + "<br />";
@@ -229,7 +253,8 @@
 		this.setState = function (stateId) {
 			if (paintStates.hasOwnProperty(stateId)) {
 				console.info('STATE: ', stateId);
-				this.clickHandler = paintStates[stateId];
+				this.clickHandler = paintStates[stateId].click;
+				this.updateEditPosition = paintStates[stateId].mouseMove;
 			}
 		};
 
@@ -241,6 +266,19 @@
 
 			self.clickHandler(x, y, event);
 			self.renderEditShape();
+		};
+
+		this.handleMouseMove = function (event) {
+			self.logMousePosition(event);
+			self.updatePointerPosition(event);
+			self.renderEditShape();
+		};
+
+		this.getMousePosition = function (event) {
+			return {
+				x: event.offsetX,
+				y: event.offsetY
+			};
 		};
 
 		this.saveEdit = function () {
