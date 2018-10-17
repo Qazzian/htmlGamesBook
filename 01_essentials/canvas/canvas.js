@@ -94,8 +94,11 @@ function Paint(canvasElmt, editPaneElement) {
 	this.renderEditShape = function () {
 		var context = this.editContext;
 		var coords = this.editShape;
-		console.info('editShape: ', coords);
 		var i, l = coords.length;
+
+		if (l === 0) {
+			return;
+		}
 
 		var editPath = new Path2D();
 
